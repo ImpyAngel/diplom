@@ -6,10 +6,13 @@ from typing import Tuple, Callable, List, Optional, Union
 
 import random
 import math
+import pandas as pd
+import abc
 
 from matplotlib.axes import Axes
 
 from plot_util import PlotWrapper
+from src.data_storage import EA_Experiment
 
 orange = '#FF8000'
 
@@ -154,27 +157,58 @@ def plot_example():
     plt.show()
 
 
-class OneMax:
-    def __init__(self, n: int, r: int, T: Optional[int]):
+class Problem(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def distance(self, cur_vector: List[bool], base_vector: List[bool]) -> int:
+        pass
+
+
+class OneMax(Problem):
+    def __str__(self):
+        return "one_max"
+
+    def distance(self, cur_vector: List[bool], base_vector: List[bool]) -> int:
+        ans = 0
+        for i, x in enumerate(base_vector):
+            if x == cur_vector[i]:
+                ans += 1
+        return ans
+
+
+
+class LeadingOnes(Problem):
+
+    def __str__(self):
+        return "leading_ones"
+
+    def distance(self, cur_vector: List[bool], base_vector: List[bool]) -> int:
+        ans = 0
+        for i, x in enumerate(base_vector):
+            if x == cur_vector[i]:
+                ans += 1
+            else:
+                break
+        return ans
+
+
+class AlgorithmOnePlusOne:
+    def __init__(self, n: int, r: int, T: Optional[int], algo: Problem = OneMax()):
         self.n = n
         self.r = r
         self.T = T
         self.cur_vector = self.init_vector()
         self.max_vector = self.init_vector()
         self.i = 0
+        self.algo = algo
 
     def init_vector(self) -> List[bool]:
         return np.random.choice([False, True], size=(self.n,), p=[1. / 2, 1. / 2])
 
     def d(self) -> int:
-        return self.vector_d(self.cur_vector)
+        return self.distance(self.cur_vector)
 
-    def vector_d(self, vector: List[bool]) -> int:
-        ans = 0
-        for i, x in enumerate(vector):
-            if x == self.max_vector[i]:
-                ans += 1
-        return ans
+    def distance(self, vector: List[bool]) -> int:
+        return self.algo.distance(vector, self.max_vector)
 
     def emulate_p(self) -> bool:
         return random_u(self.r, self.n)
@@ -218,7 +252,7 @@ class OneMax:
                 self.change_one_bit_in_max()
             i += 1
             new_vector = self.mutate_cur_vector()
-            if self.d() <= self.vector_d(new_vector):
+            if self.d() <= self.distance(new_vector):
                 self.cur_vector = new_vector
         if need_ds:
             return ds
@@ -227,7 +261,7 @@ class OneMax:
 
 
 def time(n: int, r: int, T: Optional[int]) -> int:
-    cur_time = OneMax(n, r, T).time_with_stop()
+    cur_time = AlgorithmOnePlusOne(n, r, T).time_with_stop()
     return cur_time
 
 
@@ -281,9 +315,12 @@ def averaged_time_without_T(n: int, r: int, iterations: int) -> Tuple[float, flo
 def plot_d(r: int, n: int, T: Optional[int], iterations=2000):
     name = f'plot_d_{n}_{T}_{iterations}{random.randint(1, n)}'
 
-    ds = OneMax(n, r, T).ds(iterations)
+    storage = EA_Experiment(name)
+    ds = AlgorithmOnePlusOne(n, r, T).ds(iterations)
     x = range(0, len(ds))
     y = ds
+
+    storage.add_experiment(n, T, r, ds, 0, iterations)
 
     fig = plt.figure()
     plt.plot(x, y)
@@ -303,20 +340,40 @@ def plot_d(r: int, n: int, T: Optional[int], iterations=2000):
     plt.close(fig)
 
 
-def plot_d_averaged(r: int, n: int, T: Optional[int], upper_iterations=2000, down_iteration=20):
+def plot_d_averaged(r: int, n: int, T: Optional[int], upper_iterations=2000, down_iteration=20,
+                    problem: Problem = OneMax()):
     acc = [[] for i in range(upper_iterations)]
     for i in range(down_iteration):
-        ds = OneMax(n, r, T).ds(upper_iterations)
+        ds = AlgorithmOnePlusOne(n, r, T, problem).ds(upper_iterations)
         print(f"for {n} - {i}")
         for j in range(upper_iterations):
-            acc[j].append(n if len(ds) < j else ds[j])
+            acc[j].append(n if len(ds) <= j else ds[j])
     ys = list()
     for i in acc:
         ys.append(np.mean(i))
+    name = f'plot_d_{str(problem)}_{n}_{T}_{upper_iterations}_{down_iteration}'
+    storage = EA_Experiment(name)
+    storage.save_to_file(n, T, r, ys, upper_iterations, down_iteration)
+
     xs = list(range(upper_iterations))
-    plot = PlotWrapper(0, upper_iterations)
-    plot.add_line(xs, ys, f"average by {down_iteration}", orange)
-    name = f'plot_d_averaged_{n}_{r}_{T}_{upper_iterations}_{random.randint(1, n)}'
+    plot = PlotWrapper(0, upper_iterations, "lower right")
+    plot.add_line(xs, ys, orange)
+    name = f'plot_d_averaged_{str(problem)}_{n}_{r}_{T}_{upper_iterations}_{down_iteration}_{random.randint(1, n)}'
+    plot.saveToFile(name)
+
+
+def plot_d_by_file():
+    fileName = "csv/plot_d_1000_10_20000_20.csv"
+    df = pd.read_csv(fileName)
+    ys = df['d']
+    xs = list(range(len(ys)))
+
+    plot = PlotWrapper(0, len(ys), "lower right")
+    plot.add_line(xs, ys, f"average by {20}", orange)
+    plot.x_label("iterations")
+    plot.y_label("distance")
+    name = f'csv_plot_d_averaged_1000_10_20000_20_{random.randint(1, 100)}'
+    plot.add_text("T = 10, N = 1000")
     plot.saveToFile(name)
 
 
@@ -324,9 +381,9 @@ def plot_all():
     # print("mu started")
 
     print("d started")
-    plot_d(1, 100, 10)
-    plot_d(1, 200, 10)
-    plot_d(1, 400, 15)
+    # plot_d(1, 100, 1)
+    # plot_d(1, 200, 10)
+    # plot_d(1, 400, 15)
 
     # print("time r = 1 started")
     # plot_time(1, 10)
@@ -352,11 +409,13 @@ if __name__ == '__main__':
     # print(100)
     # plot_d_averaged(1, 100, 20)
 
-    print(200)
-    plot_d_averaged(1, 200, 20)
+    print(100)
+    plot_d_averaged(1, 50, 100, 30000, 10, problem=LeadingOnes())
 
-    print(400)
-    plot_d_averaged(1, 400, 20, upper_iterations=4000)
+    # print(400)
+    # plot_d_averaged(1, 400, 10, upper_iterations=10000)
 
-    print(1000)
-    plot_d_averaged(1, 1000, 20, upper_iterations=10000)
+    # print(1000)
+    # plot_d_averaged(1, 1000, 10, upper_iterations=20000)
+
+    # plot_d_by_file()
