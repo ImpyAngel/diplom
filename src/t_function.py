@@ -5,6 +5,7 @@ import numpy as np
 from plot import orange
 from plot_util import PlotWrapper
 
+r = 1
 
 def t_negative_lower_function(c: float) -> float:
     return exp(c - 1) * c
@@ -22,7 +23,7 @@ def t_another_function(c: float) -> float:
     return (1 - c)/(t_negative_lower_function(c) * (1 + c))
 
 
-def plot_t_function(min_c: float, upper=0.5, name="min_c"):
+def plot_t_function(min_c: float, upper=0.5, name="min_c", r=1):
     lower = min_c
     plotter = PlotWrapper(min_c, upper)
     xs = np.linspace(lower, upper, 1000)

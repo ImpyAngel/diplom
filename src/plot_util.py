@@ -22,7 +22,8 @@ class PlotWrapper:
     def run(self):
         for f in self.funcs:
             f(self.ax)
-        self.ax.legend(tuple(self.legends), loc=self.legends_loc)
+        if len(self.legends) != 0:
+            self.ax.legend(tuple(self.legends), loc=self.legends_loc)
         self.ax.grid(True)
 
     def show(self):
@@ -39,16 +40,18 @@ class PlotWrapper:
         plt.close(self.fig)
 
     def add_text(self, text):
-        plt.text(0.1, 0.1, text,
-                 horizontalalignment='center',
+        plt.text(0.95, 0.1, text,
+                 horizontalalignment='right',
                  verticalalignment='center',
                  transform=self.ax.transAxes,
-                 fontsize='xx-large',
                  bbox={'facecolor': 'white', 'edgecolor': 'grey', 'alpha': 0.8})
 
     def add_line(self, xs, ys, color: Optional[str] = None):
         self.funcs.append(lambda _: self.ax.plot(xs, ys, color))
         # self.legends.append(legend)
+
+    def add_max(self, min=None, max=None):
+        self.funcs.append(lambda _: self.ax.set_ylim(bottom=min, top=max))
 
     def horizontal_line(self, value, legend: str, color: Optional[str] = None):
         self.funcs.append(lambda _: self.ax.hlines(value, self.lower, self.upper, color))
@@ -59,7 +62,7 @@ class PlotWrapper:
         self.legends.append(legend)
 
     def x_label(self, label: str):
-        self.funcs.append(lambda _: self.fig.xlabel(label, fontsize='xx-large'))
+        self.funcs.append(lambda _: self.ax.set_xlabel(label, fontsize='xx-large'))
 
     def y_label(self, label: str):
-        self.funcs.append(lambda: self.fig.ylabel(label, fontsize='xx-large'))
+        self.funcs.append(lambda _: self.ax.set_ylabel(label, fontsize='xx-large'))

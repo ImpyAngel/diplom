@@ -358,6 +358,9 @@ def plot_d_averaged(r: int, n: int, T: Optional[int], upper_iterations=2000, dow
     xs = list(range(upper_iterations))
     plot = PlotWrapper(0, upper_iterations, "lower right")
     plot.add_line(xs, ys, orange)
+    plot.x_label("iteration")
+    plot.y_label("d")
+    plot.add_text(f'averaged by {down_iteration}')
     name = f'plot_d_averaged_{str(problem)}_{n}_{r}_{T}_{upper_iterations}_{down_iteration}_{random.randint(1, n)}'
     plot.saveToFile(name)
 
@@ -408,14 +411,17 @@ if __name__ == '__main__':
     # plot_T_bigger_X(1, 100, 20)
     # print(100)
     # plot_d_averaged(1, 100, 20)
-
-    print(100)
-    plot_d_averaged(1, 50, 100, 30000, 10, problem=LeadingOnes())
-
+    #
+    # print(100)
+    # plot_d_averaged(10, 100, 10)
+    #
+    # print(200)
+    # plot_d_averaged(10, 200, 10)
+    #
     # print(400)
-    # plot_d_averaged(1, 400, 10, upper_iterations=10000)
+    # plot_d_averaged(10, 400, 10, upper_iterations=10000)
 
-    # print(1000)
-    # plot_d_averaged(1, 1000, 10, upper_iterations=20000)
+    print(1000)
+    plot_d_averaged(10, 1000, 10, upper_iterations=20000)
 
     # plot_d_by_file()
